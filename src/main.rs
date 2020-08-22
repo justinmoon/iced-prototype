@@ -1,54 +1,44 @@
 use iced::{button, Align, Button, Column, Element, Sandbox, Settings, Text};
+use log::error;
+
+mod data;
+mod setup;
 
 pub fn main() {
+    env_logger::init();
     Junction::run(Settings::default())
 }
 
-#[derive(Debug, Clone, Copy)]
-enum Message {
-    Navigate,
+#[derive(Debug, Clone)]
+pub enum Message {
+    Setup(setup::Message),
 }
 
-#[derive(Default)]
-struct Setup {
-    navigate_button: button::State,
-}
-
-impl Setup {
-    pub fn view(&mut self) -> Element<Message> {
-        Column::new()
-            .padding(20)
-            .align_items(Align::Center)
-            .push(Text::new("Setup").size(50))
-            .push(
-                Button::new(&mut self.navigate_button, Text::new("Navigate"))
-                    .on_press(Message::Navigate),
-            )
-            .into()
-    }
-}
-
-#[derive(Default)]
+#[derive(Debug, Clone)]
 struct Account {
     navigate_button: button::State,
+    account: data::Account,
 }
 
 impl Account {
+    pub fn new(account: data::Account) -> Self {
+        Self {
+            navigate_button: button::State::new(),
+            account,
+        }
+    }
     pub fn view(&mut self) -> Element<Message> {
         Column::new()
             .padding(20)
             .align_items(Align::Center)
-            .push(Text::new("Account").size(50))
-            .push(
-                Button::new(&mut self.navigate_button, Text::new("Navigate"))
-                    .on_press(Message::Navigate),
-            )
+            .push(Text::new(format!("Account: {}", self.account.name)).size(50))
             .into()
     }
 }
 
+#[derive(Debug, Clone)]
 enum Page {
-    Setup(Setup),
+    Setup(setup::Page),
     Account(Account),
 }
 
@@ -56,21 +46,12 @@ struct Junction {
     page: Page,
 }
 
-impl Junction {
-    fn navigate(&mut self) {
-        match self.page {
-            Page::Account(_) => self.page = Page::Setup(Setup::default()),
-            Page::Setup(_) => self.page = Page::Account(Account::default()),
-        }
-    }
-}
-
 impl Sandbox for Junction {
     type Message = Message;
 
     fn new() -> Self {
         Self {
-            page: Page::Setup(Setup::default()),
+            page: Page::Setup(setup::Page::new()),
         }
     }
 
@@ -80,13 +61,23 @@ impl Sandbox for Junction {
 
     fn update(&mut self, message: Message) {
         match message {
-            Message::Navigate => self.navigate(),
+            Message::Setup(msg) => match self.page {
+                Page::Setup(ref mut page) => match msg {
+                    // Intercept account completion
+                    setup::Message::SetupComplete(account) => {
+                        self.page = Page::Account(Account::new(account))
+                    }
+                    // Forward all other setup wizard events
+                    _ => page.update(msg),
+                },
+                _ => error!("Receive setup message outside setup page"),
+            },
         }
     }
 
     fn view(&mut self) -> Element<Message> {
         match self.page {
-            Page::Setup(ref mut setup) => setup.view(),
+            Page::Setup(ref mut setup) => setup.view().map(Message::Setup),
             Page::Account(ref mut account) => account.view(),
         }
     }
