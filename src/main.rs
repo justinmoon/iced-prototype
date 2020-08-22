@@ -1,59 +1,94 @@
 use iced::{button, Align, Button, Column, Element, Sandbox, Settings, Text};
 
 pub fn main() {
-    Counter::run(Settings::default())
-}
-
-#[derive(Default)]
-struct Counter {
-    value: i32,
-    increment_button: button::State,
-    decrement_button: button::State,
+    Junction::run(Settings::default())
 }
 
 #[derive(Debug, Clone, Copy)]
 enum Message {
-    IncrementPressed,
-    DecrementPressed,
+    Navigate,
 }
 
-impl Sandbox for Counter {
-    type Message = Message;
+#[derive(Default)]
+struct Setup {
+    navigate_button: button::State,
+}
 
-    fn new() -> Self {
-        Self::default()
-    }
-
-    fn title(&self) -> String {
-        String::from("Counter - Iced")
-    }
-
-    fn update(&mut self, message: Message) {
-        match message {
-            Message::IncrementPressed => {
-                self.value += 1;
-            }
-            Message::DecrementPressed => {
-                self.value -= 1;
-            }
-        }
-    }
-
-    fn view(&mut self) -> Element<Message> {
+impl Setup {
+    pub fn view(&mut self) -> Element<Message> {
         Column::new()
             .padding(20)
             .align_items(Align::Center)
+            .push(Text::new("Setup").size(50))
             .push(
-                Button::new(&mut self.increment_button, Text::new("Increment"))
-                    .on_press(Message::IncrementPressed),
-            )
-            .push(Text::new(self.value.to_string()).size(50))
-            .push(
-                Button::new(&mut self.decrement_button, Text::new("Decrement"))
-                    .on_press(Message::DecrementPressed),
+                Button::new(&mut self.navigate_button, Text::new("Navigate"))
+                    .on_press(Message::Navigate),
             )
             .into()
     }
 }
 
+#[derive(Default)]
+struct Account {
+    navigate_button: button::State,
+}
+
+impl Account {
+    pub fn view(&mut self) -> Element<Message> {
+        Column::new()
+            .padding(20)
+            .align_items(Align::Center)
+            .push(Text::new("Account").size(50))
+            .push(
+                Button::new(&mut self.navigate_button, Text::new("Navigate"))
+                    .on_press(Message::Navigate),
+            )
+            .into()
+    }
+}
+
+enum Page {
+    Setup(Setup),
+    Account(Account),
+}
+
+struct Junction {
+    page: Page,
+}
+
+impl Junction {
+    fn navigate(&mut self) {
+        match self.page {
+            Page::Account(_) => self.page = Page::Setup(Setup::default()),
+            Page::Setup(_) => self.page = Page::Account(Account::default()),
+        }
+    }
+}
+
+impl Sandbox for Junction {
+    type Message = Message;
+
+    fn new() -> Self {
+        Self {
+            page: Page::Setup(Setup::default()),
+        }
+    }
+
+    fn title(&self) -> String {
+        String::from("Junction")
+    }
+
+    fn update(&mut self, message: Message) {
+        match message {
+            Message::Navigate => self.navigate(),
+        }
+    }
+
+    fn view(&mut self) -> Element<Message> {
+        match self.page {
+            Page::Setup(ref mut setup) => setup.view(),
+            Page::Account(ref mut account) => account.view(),
+        }
+    }
+}
 
