@@ -1,6 +1,18 @@
-use iced::{button, Align, Button, Column, Element, Radio, Sandbox, Settings, Text};
+use iced::{
+    button, text_input, Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox,
+    Settings, Text, TextInput,
+};
 
 use crate::data::{Account, Network};
+
+fn button<'a, Message>(state: &'a mut button::State, label: &str) -> Button<'a, Message> {
+    Button::new(
+        state,
+        Text::new(label).horizontal_alignment(HorizontalAlignment::Center),
+    )
+    .padding(12)
+    .min_width(100)
+}
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -8,6 +20,7 @@ pub enum Message {
     Back,
     SetupComplete(Account),
     NetworkSelected(Network),
+    Name(String),
 }
 
 #[derive(Debug, Clone)]
@@ -23,6 +36,7 @@ enum Step {
         network: Option<Network>,
     },
     Name {
+        input_state: text_input::State,
         network: Network,
         name: String,
     },
@@ -75,7 +89,7 @@ fn generate_words() -> Vec<String> {
     ]
 }
 
-impl Page {
+impl<'a> Page {
     pub fn new() -> Self {
         Self {
             next_button: button::State::new(),
@@ -90,10 +104,10 @@ impl Page {
             Message::Next => match self.step.clone() {
                 Step::Network { network } => {
                     if let Some(network) = network {
-                        self.step = Step::Name { name: "".to_string(), network };
+                        self.step = Step::Name { input_state: text_input::State::new(), name: "".to_string(), network };
                     }
                 },
-                Step::Name { network, name } => self.step = Step::HowManyWords { network, name, how_many: 24 },
+                Step::Name { network, name, .. } => self.step = Step::HowManyWords { network, name, how_many: 24 },
                 Step::HowManyWords { network, name, how_many } => {
                     self.step = Step::DisplayWords {
                         network,
@@ -118,7 +132,11 @@ impl Page {
                     }
                 }
                 Step::HowManyWords { network, name, .. } => {
-                    self.step = Step::Name { network, name }
+                    self.step = Step::Name {
+                        network,
+                        name,
+                        input_state: text_input::State::new(),
+                    }
                 }
                 Step::DisplayWords {
                     network,
@@ -140,20 +158,67 @@ impl Page {
                     }
                 }
             }
+            Message::Name(name) => {
+                if let Step::Name {
+                    network,
+                    input_state,
+                    ..
+                } = self.step.clone()
+                {
+                    self.step = Step::Name {
+                        network,
+                        input_state,
+                        name,
+                    };
+                }
+            }
             // This is handled above
             Message::SetupComplete(_) => {}
         };
         println!("end step: {:?}", self.step);
     }
     pub fn view(&mut self) -> Element<Message> {
+        let mut controls = Row::new();
+
+        // Back button
         match self.step.clone() {
-            Step::Network { network } => self.network(network),
-            Step::Name { name, .. } => self.name(name),
-            Step::HowManyWords { how_many, .. } => self.how_many_words(how_many),
-            Step::DisplayWords { name, words, .. } => self.display_words(words, name),
+            // First step can't go back
+            Step::Network { .. } => {}
+            _ => {
+                controls =
+                    controls.push(button(&mut self.back_button, "Back").on_press(Message::Back));
+            }
         }
+
+        // Next button
+        match self.step.clone() {
+            Step::DisplayWords { name, .. } => {
+                let account = Account { name };
+                controls = controls.push(
+                    //Button::new(self.next_button, Text::new("Finish"))
+                    //.on_press(Message::SetupComplete(account)),
+                    button(&mut self.next_button, "Finish")
+                        .on_press(Message::SetupComplete(account)),
+                );
+            }
+            _ => {
+                controls =
+                    controls.push(button(&mut self.next_button, "Next").on_press(Message::Next));
+            }
+        }
+
+        let content = match &mut self.step {
+            Step::Network { network } => Self::network(*network),
+            Step::Name {
+                input_state, name, ..
+            } => Self::name(input_state, name),
+            Step::HowManyWords { how_many, .. } => Self::how_many_words(*how_many),
+            Step::DisplayWords { name, words, .. } => Self::display_words(words.clone(), name),
+        };
+
+        Column::new().push(content).push(controls).into()
     }
-    fn network(&mut self, selection: Option<Network>) -> Element<Message> {
+    fn network(selection: Option<Network>) -> Element<'a, Message> {
         let question = Column::new()
             .padding(20)
             .spacing(10)
@@ -175,37 +240,32 @@ impl Page {
             .align_items(Align::Center)
             .push(Text::new("Choose Network").size(50))
             .push(question)
-            .push(Button::new(&mut self.next_button, Text::new("Next")).on_press(Message::Next))
             .into()
     }
-    fn name(&mut self, name: String) -> Element<Message> {
+    fn name(input_state: &'a mut text_input::State, name: &str) -> Element<'a, Message> {
+        let input = TextInput::new(input_state, "Name", name, Message::Name)
+            .padding(15)
+            .size(30);
+
         Column::new()
             .padding(20)
             .align_items(Align::Center)
             .push(Text::new("Name").size(50))
-            .push(Button::new(&mut self.next_button, Text::new("Next")).on_press(Message::Next))
+            .push(input)
             .into()
     }
-    fn how_many_words(&mut self, how_many_words: u8) -> Element<Message> {
+    fn how_many_words(how_many_words: u8) -> Element<'a, Message> {
         Column::new()
             .padding(20)
             .align_items(Align::Center)
             .push(Text::new("How Many Words").size(50))
-            .push(Button::new(&mut self.back_button, Text::new("Back")).on_press(Message::Back))
-            .push(Button::new(&mut self.next_button, Text::new("Next")).on_press(Message::Next))
             .into()
     }
-    fn display_words(&mut self, words: Vec<String>, name: String) -> Element<Message> {
-        let account = Account { name };
+    fn display_words(words: Vec<String>, name: &str) -> Element<'a, Message> {
         Column::new()
             .padding(20)
             .align_items(Align::Center)
             .push(Text::new("Display Words").size(50))
-            .push(Button::new(&mut self.back_button, Text::new("Back")).on_press(Message::Back))
-            .push(
-                Button::new(&mut self.next_button, Text::new("Finish"))
-                    .on_press(Message::SetupComplete(account)),
-            )
             .into()
     }
 }
