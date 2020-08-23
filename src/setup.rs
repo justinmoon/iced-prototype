@@ -1,6 +1,6 @@
 use iced::{
-    button, text_input, Align, Button, Column, Element, HorizontalAlignment, Radio, Row, Sandbox,
-    Settings, Text, TextInput,
+    button, scrollable, text_input, Align, Button, Column, Container, Element, HorizontalAlignment,
+    Length, Radio, Row, Sandbox, Scrollable, Settings, Text, TextInput,
 };
 
 use crate::data::{Account, Entropy, Network};
@@ -26,6 +26,7 @@ pub enum Message {
 
 #[derive(Debug, Clone)]
 pub struct Page {
+    scroll: scrollable::State,
     next_button: button::State,
     back_button: button::State,
     step: Step,
@@ -73,6 +74,7 @@ impl<'a> Page {
         Self {
             next_button: button::State::new(),
             back_button: button::State::new(),
+            scroll: scrollable::State::new(),
             step: Step::Network { network: None },
         }
     }
@@ -206,7 +208,15 @@ impl<'a> Page {
             Step::DisplayWords { name, words, .. } => Self::display_words(words.clone(), name),
         };
 
-        Column::new().push(content).push(controls).into()
+        // TODO: put the controls outside the scrollable
+        let all_content = Column::new().push(content).push(controls);
+        let scrollable = Scrollable::new(&mut self.scroll)
+            .push(Container::new(all_content).width(Length::Fill).center_x());
+
+        Container::new(scrollable)
+            .height(Length::Fill)
+            .center_y()
+            .into()
     }
     fn network(selection: Option<Network>) -> Element<'a, Message> {
         let question = Column::new()
