@@ -1,5 +1,6 @@
 use iced::{
-    button, Align, Button, Column, Element, HorizontalAlignment, Row, Sandbox, Settings, Text,
+    button, Align, Button, Column, Element, HorizontalAlignment, Length, Row, Sandbox, Settings,
+    Text,
 };
 use log::error;
 
@@ -36,11 +37,14 @@ impl AccountPage {
         }
     }
     pub fn view(&mut self) -> Element<Message> {
-        Column::new()
+        let nav = Column::new()
+            .push(Text::new("Nav"))
+            .width(Length::Units(200));
+        let main = Column::new()
             .padding(20)
             .align_items(Align::Center)
-            .push(Text::new(format!("Account: {}", self.account.name)).size(50))
-            .into()
+            .push(Text::new(format!("Account: {}", self.account.name)).size(50));
+        Row::new().push(nav).push(main).into()
     }
 }
 
