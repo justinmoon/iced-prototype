@@ -26,3 +26,33 @@ impl From<Network> for String {
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum Entropy {
+    Low,
+    Medium,
+    High,
+}
+
+impl Entropy {
+    pub fn all() -> [Entropy; 3] {
+        [Entropy::Low, Entropy::Medium, Entropy::High]
+    }
+    pub fn words(&self) -> u8 {
+        match self {
+            Self::Low => 12,
+            Self::Medium => 18,
+            Self::High => 24,
+        }
+    }
+}
+
+impl From<Entropy> for String {
+    fn from(entropy: Entropy) -> String {
+        String::from(match entropy {
+            Entropy::Low => "Regtest",
+            Entropy::Medium => "Medium",
+            Entropy::High => "High",
+        })
+    }
+}
+

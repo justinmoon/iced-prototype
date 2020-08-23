@@ -3,7 +3,7 @@ use iced::{
     Settings, Text, TextInput,
 };
 
-use crate::data::{Account, Network};
+use crate::data::{Account, Entropy, Network};
 
 fn button<'a, Message>(state: &'a mut button::State, label: &str) -> Button<'a, Message> {
     Button::new(
@@ -21,6 +21,7 @@ pub enum Message {
     SetupComplete(Account),
     NetworkSelected(Network),
     Name(String),
+    HowManyWords(Entropy),
 }
 
 #[derive(Debug, Clone)]
@@ -43,12 +44,12 @@ enum Step {
     HowManyWords {
         network: Network,
         name: String,
-        how_many: u8,
+        how_many: Option<Entropy>,
     },
     DisplayWords {
         network: Network,
         name: String,
-        how_many: u8,
+        how_many: Entropy,
         words: Vec<String>,
     },
     //CreateAccount {
@@ -59,34 +60,12 @@ enum Step {
     //},
 }
 
-fn generate_words() -> Vec<String> {
-    vec![
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-        String::from("potato"),
-    ]
+fn generate_words(entroy: Entropy) -> Vec<String> {
+    let mut words: Vec<String> = vec![];
+    for _ in 0..entroy.words() {
+        words.push(String::from("potato"));
+    }
+    words
 }
 
 impl<'a> Page {
@@ -107,13 +86,15 @@ impl<'a> Page {
                         self.step = Step::Name { input_state: text_input::State::new(), name: "".to_string(), network };
                     }
                 },
-                Step::Name { network, name, .. } => self.step = Step::HowManyWords { network, name, how_many: 24 },
+                Step::Name { network, name, .. } => self.step = Step::HowManyWords { network, name, how_many: None },
                 Step::HowManyWords { network, name, how_many } => {
-                    self.step = Step::DisplayWords {
-                        network,
-                        name,
-                        how_many,
-                        words: generate_words(),
+                    if let Some(how_many) = how_many {
+                        self.step = Step::DisplayWords {
+                            network,
+                            name,
+                            how_many,
+                            words: generate_words(how_many),
+                        }
                     }
                 }
                 Step::DisplayWords {
@@ -147,7 +128,7 @@ impl<'a> Page {
                     self.step = Step::HowManyWords {
                         network,
                         name,
-                        how_many,
+                        how_many: None,
                     }
                 }
             },
@@ -169,6 +150,15 @@ impl<'a> Page {
                         network,
                         input_state,
                         name,
+                    };
+                }
+            }
+            Message::HowManyWords(how_many) => {
+                if let Step::HowManyWords { network, name, .. } = self.step.clone() {
+                    self.step = Step::HowManyWords {
+                        network,
+                        name,
+                        how_many: Some(how_many),
                     };
                 }
             }
@@ -254,18 +244,43 @@ impl<'a> Page {
             .push(input)
             .into()
     }
-    fn how_many_words(how_many_words: u8) -> Element<'a, Message> {
+    fn how_many_words(how_many_words: Option<Entropy>) -> Element<'a, Message> {
+        let radio = Column::new()
+            .padding(20)
+            .spacing(10)
+            .push(Text::new("Iced is written in...").size(24))
+            .push(Entropy::all().iter().cloned().fold(
+                Column::new().padding(10).spacing(20),
+                |choices, network| {
+                    choices.push(Radio::new(
+                        network,
+                        network,
+                        how_many_words,
+                        Message::HowManyWords,
+                    ))
+                },
+            ));
         Column::new()
             .padding(20)
             .align_items(Align::Center)
             .push(Text::new("How Many Words").size(50))
+            .push(radio)
             .into()
     }
     fn display_words(words: Vec<String>, name: &str) -> Element<'a, Message> {
+        let word_list = Column::new().padding(20).spacing(10).push(
+            words
+                .iter()
+                .cloned()
+                .fold(Column::new().padding(10).spacing(20), |choices, word| {
+                    choices.push(Text::new(word))
+                }),
+        );
         Column::new()
             .padding(20)
             .align_items(Align::Center)
             .push(Text::new("Display Words").size(50))
+            .push(word_list)
             .into()
     }
 }
