@@ -10,10 +10,141 @@ mod setup;
 
 use data::Account;
 
-pub fn main() {
-    env_logger::init();
-    Junction::run(Settings::default())
+//
+// Accounts
+//
+
+#[derive(Debug, Clone)]
+pub enum AccountMessage {
+    ChangeView(AccountView),
 }
+
+#[derive(Debug, Clone)]
+pub enum AccountView {
+    Send,
+    Receive,
+    Transactions,
+    Settings,
+}
+
+#[derive(Debug, Clone)]
+struct AccountNav {
+    transactions_view_button: button::State,
+    send_view_button: button::State,
+    receive_view_button: button::State,
+    settings_view_button: button::State,
+}
+
+impl<'a> AccountNav {
+    pub fn new() -> Self {
+        Self {
+            transactions_view_button: button::State::new(),
+            send_view_button: button::State::new(),
+            receive_view_button: button::State::new(),
+            settings_view_button: button::State::new(),
+        }
+    }
+    pub fn button(
+        label: &'a str,
+        button_state: &'a mut button::State,
+        account_view: AccountView,
+    ) -> Element<'a, AccountMessage> {
+        Button::new(
+            button_state,
+            Text::new(label).horizontal_alignment(HorizontalAlignment::Center),
+        )
+        .on_press(AccountMessage::ChangeView(account_view))
+        .into()
+    }
+    pub fn view(&mut self) -> Element<AccountMessage> {
+        let buttons = Column::new()
+            .push(Self::button(
+                "Transactions",
+                &mut self.transactions_view_button,
+                AccountView::Transactions,
+            ))
+            .push(Self::button(
+                "Send",
+                &mut self.send_view_button,
+                AccountView::Send,
+            ))
+            .push(Self::button(
+                "Receive",
+                &mut self.receive_view_button,
+                AccountView::Receive,
+            ))
+            .push(Self::button(
+                "Settings",
+                &mut self.settings_view_button,
+                AccountView::Settings,
+            ));
+        Column::new().push(buttons).width(Length::Units(200)).into()
+    }
+}
+
+#[derive(Debug, Clone)]
+struct AccountPage {
+    navigate_button: button::State,
+    account: Account,
+    nav: AccountNav,
+    view: AccountView,
+}
+
+impl<'a> AccountPage {
+    pub fn new(account: Account) -> Self {
+        Self {
+            navigate_button: button::State::new(),
+            account,
+            view: AccountView::Transactions,
+            nav: AccountNav::new(),
+        }
+    }
+    fn update(&mut self, message: AccountMessage) {
+        match message {
+            AccountMessage::ChangeView(view) => self.view = view,
+        }
+    }
+    pub fn _main(&self) -> Element<AccountMessage> {
+        let content = match self.view {
+            AccountView::Transactions => Text::new("Transactions"),
+            AccountView::Send => Text::new("Send"),
+            AccountView::Receive => Text::new("Receive"),
+            AccountView::Settings => Text::new("Settings"),
+        };
+        let account_name = Text::new(format!("Account: {}", self.account.name)).size(50);
+
+        Column::new()
+            .padding(20)
+            .align_items(Align::Center)
+            .push(content)
+            .into()
+    }
+    pub fn main(view: &AccountView, account: &Account) -> Element<'a, AccountMessage> {
+        let content = match view {
+            AccountView::Transactions => Text::new("Transactions"),
+            AccountView::Send => Text::new("Send"),
+            AccountView::Receive => Text::new("Receive"),
+            AccountView::Settings => Text::new("Settings"),
+        };
+        //let account_name = Text::new(format!("Account: {}", self.account.name)).size(50);
+
+        Column::new()
+            .padding(20)
+            .align_items(Align::Center)
+            .push(content)
+            .into()
+    }
+    pub fn view(&mut self) -> Element<AccountMessage> {
+        Row::new()
+            .push(self.nav.view())
+            .push(AccountPage::main(&self.view, &self.account))
+            .into()
+    }
+}
+
+//
+// Application
+//
 
 #[derive(Debug, Clone)]
 pub enum Message {
@@ -21,31 +152,7 @@ pub enum Message {
     // TODO: this should just take an account UUID ...
     ChangeAccount(Account),
     CreateAccount,
-}
-
-#[derive(Debug, Clone)]
-struct AccountPage {
-    navigate_button: button::State,
-    account: Account,
-}
-
-impl AccountPage {
-    pub fn new(account: Account) -> Self {
-        Self {
-            navigate_button: button::State::new(),
-            account,
-        }
-    }
-    pub fn view(&mut self) -> Element<Message> {
-        let nav = Column::new()
-            .push(Text::new("Nav"))
-            .width(Length::Units(200));
-        let main = Column::new()
-            .padding(20)
-            .align_items(Align::Center)
-            .push(Text::new(format!("Account: {}", self.account.name)).size(50));
-        Row::new().push(nav).push(main).into()
-    }
+    AccountMessage(AccountMessage),
 }
 
 #[derive(Debug, Clone)]
@@ -111,6 +218,11 @@ impl Sandbox for Junction {
 
     fn update(&mut self, message: Message) {
         match message {
+            Message::AccountMessage(msg) => {
+                if let Page::Account(ref mut account_page) = self.page {
+                    account_page.update(msg);
+                }
+            }
             Message::ChangeAccount(account) => self.page = Page::Account(AccountPage::new(account)),
             Message::CreateAccount => self.page = Page::Setup(setup::Page::new()),
             Message::Setup(msg) => match self.page {
@@ -132,8 +244,13 @@ impl Sandbox for Junction {
             Page::Setup(ref mut setup_page) => setup_page.view().map(Message::Setup),
             Page::Account(ref mut account_page) => Column::new()
                 .push(Self::tabs(&mut self.accounts, &mut self.new_account_button))
-                .push(account_page.view())
+                .push(account_page.view().map(Message::AccountMessage))
                 .into(),
         }
     }
+}
+
+pub fn main() {
+    env_logger::init();
+    Junction::run(Settings::default())
 }
