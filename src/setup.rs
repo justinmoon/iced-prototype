@@ -185,7 +185,7 @@ impl<'a> Page {
         // Next button
         match self.step.clone() {
             Step::DisplayWords { name, .. } => {
-                let account = Account { name };
+                let account = Account::new(name);
                 controls = controls.push(
                     //Button::new(self.next_button, Text::new("Finish"))
                     //.on_press(Message::SetupComplete(account)),

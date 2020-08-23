@@ -1,6 +1,18 @@
+use iced::button;
+
 #[derive(Debug, Clone)]
 pub struct Account {
     pub name: String,
+    pub tab_button: button::State,
+}
+
+impl Account {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            tab_button: button::State::new(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -55,4 +67,3 @@ impl From<Entropy> for String {
         })
     }
 }
-
