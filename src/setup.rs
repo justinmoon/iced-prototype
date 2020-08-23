@@ -1,6 +1,6 @@
 use iced::{
-    button, scrollable, text_input, Align, Button, Column, Container, Element, HorizontalAlignment,
-    Length, Radio, Row, Sandbox, Scrollable, Settings, Text, TextInput,
+    button, scrollable, text_input, Align, Button, Column, Command, Container, Element,
+    HorizontalAlignment, Length, Radio, Row, Sandbox, Scrollable, Settings, Text, TextInput,
 };
 
 use crate::data::{Account, Entropy, Network};
@@ -78,9 +78,7 @@ impl<'a> Page {
             step: Step::Network { network: None },
         }
     }
-    pub fn update(&mut self, message: Message) {
-        println!("got message: {:?}", message);
-        println!("start step: {:?}", self.step);
+    pub fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::Next => match self.step.clone() {
                 Step::Network { network } => {
@@ -167,7 +165,8 @@ impl<'a> Page {
             // This is handled above
             Message::SetupComplete(_) => {}
         };
-        println!("end step: {:?}", self.step);
+
+        Command::none()
     }
     pub fn view(&mut self) -> Element<Message> {
         let mut controls = Row::new();

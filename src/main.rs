@@ -1,14 +1,18 @@
 use iced::{
-    button, Align, Button, Column, Element, HorizontalAlignment, Length, Row, Sandbox, Settings,
-    Text,
+    button, executor, Align, Application, Button, Column, Command, Element, HorizontalAlignment,
+    Length, Row, Settings, Text,
 };
 use log::error;
 
 mod data;
+mod error;
 mod mocks;
+mod send;
 mod setup;
+mod tasks;
 
 use data::Account;
+use error::Error;
 
 //
 // Accounts
@@ -16,12 +20,16 @@ use data::Account;
 
 #[derive(Debug, Clone)]
 pub enum AccountMessage {
-    ChangeView(AccountView),
+    SendView,
+    ReceiveView,
+    TransactionsView,
+    SettingsView,
+    Send(send::Message),
 }
 
 #[derive(Debug, Clone)]
 pub enum AccountView {
-    Send,
+    Send(send::Page),
     Receive,
     Transactions,
     Settings,
@@ -47,13 +55,13 @@ impl<'a> AccountNav {
     pub fn button(
         label: &'a str,
         button_state: &'a mut button::State,
-        account_view: AccountView,
+        message: AccountMessage,
     ) -> Element<'a, AccountMessage> {
         Button::new(
             button_state,
             Text::new(label).horizontal_alignment(HorizontalAlignment::Center),
         )
-        .on_press(AccountMessage::ChangeView(account_view))
+        .on_press(message)
         .into()
     }
     pub fn view(&mut self) -> Element<AccountMessage> {
@@ -61,22 +69,22 @@ impl<'a> AccountNav {
             .push(Self::button(
                 "Transactions",
                 &mut self.transactions_view_button,
-                AccountView::Transactions,
+                AccountMessage::TransactionsView,
             ))
             .push(Self::button(
                 "Send",
                 &mut self.send_view_button,
-                AccountView::Send,
+                AccountMessage::SendView,
             ))
             .push(Self::button(
                 "Receive",
                 &mut self.receive_view_button,
-                AccountView::Receive,
+                AccountMessage::ReceiveView,
             ))
             .push(Self::button(
                 "Settings",
                 &mut self.settings_view_button,
-                AccountView::Settings,
+                AccountMessage::SettingsView,
             ));
         Column::new().push(buttons).width(Length::Units(200)).into()
     }
@@ -99,45 +107,55 @@ impl<'a> AccountPage {
             nav: AccountNav::new(),
         }
     }
-    fn update(&mut self, message: AccountMessage) {
+    fn update(&mut self, message: AccountMessage) -> Command<AccountMessage> {
         match message {
-            AccountMessage::ChangeView(view) => self.view = view,
+            AccountMessage::SendView => {
+                // FIXME: clone
+                self.view = AccountView::Send(send::Page::new(self.account.clone()));
+                Command::none()
+            }
+            AccountMessage::ReceiveView => {
+                self.view = AccountView::Receive;
+                Command::none()
+            }
+            AccountMessage::TransactionsView => {
+                self.view = AccountView::Transactions;
+                Command::none()
+            }
+            AccountMessage::SettingsView => {
+                self.view = AccountView::Settings;
+                Command::none()
+            }
+            AccountMessage::Send(msg) => {
+                // FIXME: this is verbose ... maybe have self.view should just map .update to all
+                // active child like I did for the Node enum in druid ... ???
+                if let AccountView::Send(ref mut view) = &mut self.view {
+                    view.update(msg).map(AccountMessage::Send)
+                } else {
+                    Command::none()
+                }
+            }
         }
     }
-    pub fn _main(&self) -> Element<AccountMessage> {
-        let content = match self.view {
-            AccountView::Transactions => Text::new("Transactions"),
-            AccountView::Send => Text::new("Send"),
-            AccountView::Receive => Text::new("Receive"),
-            AccountView::Settings => Text::new("Settings"),
+    pub fn view(&mut self) -> Element<AccountMessage> {
+        let content: Element<_> = match self.view {
+            AccountView::Transactions => Text::new("Transactions").into(),
+            AccountView::Send(ref mut send) => send.view().map(AccountMessage::Send),
+            AccountView::Receive => Text::new("Receive").into(),
+            AccountView::Settings => Text::new("Settings").into(),
         };
         let account_name = Text::new(format!("Account: {}", self.account.name)).size(50);
 
-        Column::new()
+        let content: Element<_> = Column::new()
             .padding(20)
             .align_items(Align::Center)
             .push(content)
-            .into()
-    }
-    pub fn main(view: &AccountView, account: &Account) -> Element<'a, AccountMessage> {
-        let content = match view {
-            AccountView::Transactions => Text::new("Transactions"),
-            AccountView::Send => Text::new("Send"),
-            AccountView::Receive => Text::new("Receive"),
-            AccountView::Settings => Text::new("Settings"),
-        };
-        //let account_name = Text::new(format!("Account: {}", self.account.name)).size(50);
+            .into();
 
-        Column::new()
-            .padding(20)
-            .align_items(Align::Center)
-            .push(content)
-            .into()
-    }
-    pub fn view(&mut self) -> Element<AccountMessage> {
         Row::new()
             .push(self.nav.view())
-            .push(AccountPage::main(&self.view, &self.account))
+            //.push(AccountPage::main(&self.view, &self.account))
+            .push(content)
             .into()
     }
 }
@@ -199,42 +217,59 @@ impl<'a> Junction {
     }
 }
 
-impl Sandbox for Junction {
+impl Application for Junction {
+    type Executor = executor::Default;
     type Message = Message;
+    type Flags = ();
 
-    fn new() -> Self {
+    fn new(_flags: ()) -> (Self, Command<Message>) {
         let accounts = mocks::make_accounts(3);
-        Self {
-            //page: Page::Setup(setup::Page::new()),
-            page: Page::Account(AccountPage::new(accounts[0].clone())),
-            accounts,
-            new_account_button: button::State::new(),
-        }
+        (
+            Self {
+                //page: Page::Setup(setup::Page::new()),
+                page: Page::Account(AccountPage::new(accounts[0].clone())),
+                accounts,
+                new_account_button: button::State::new(),
+            },
+            Command::none(),
+        )
     }
 
     fn title(&self) -> String {
         String::from("Junction")
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Command<Message> {
         match message {
             Message::AccountMessage(msg) => {
                 if let Page::Account(ref mut account_page) = self.page {
-                    account_page.update(msg);
+                    account_page.update(msg).map(Message::AccountMessage)
+                } else {
+                    Command::none()
                 }
             }
-            Message::ChangeAccount(account) => self.page = Page::Account(AccountPage::new(account)),
-            Message::CreateAccount => self.page = Page::Setup(setup::Page::new()),
+            Message::ChangeAccount(account) => {
+                self.page = Page::Account(AccountPage::new(account));
+                Command::none()
+            }
+            Message::CreateAccount => {
+                self.page = Page::Setup(setup::Page::new());
+                Command::none()
+            }
             Message::Setup(msg) => match self.page {
                 Page::Setup(ref mut page) => match msg {
                     // Intercept account completion
                     setup::Message::SetupComplete(account) => {
-                        self.page = Page::Account(AccountPage::new(account))
+                        self.page = Page::Account(AccountPage::new(account));
+                        Command::none()
                     }
                     // Forward all other setup wizard events
-                    _ => page.update(msg),
+                    _ => page.update(msg).map(Message::Setup),
                 },
-                _ => error!("Receive setup message outside setup page"),
+                _ => {
+                    error!("Receive setup message outside setup page");
+                    Command::none()
+                }
             },
         }
     }
