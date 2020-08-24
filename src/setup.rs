@@ -1,10 +1,13 @@
 use iced::{
     button, scrollable, text_input, Align, Button, Column, Command, Container, Element,
-    HorizontalAlignment, Length, Radio, Row, Sandbox, Scrollable, Settings, Text, TextInput,
+    HorizontalAlignment, Length, Radio, Row, Scrollable, Text, TextInput,
 };
 
-use crate::data::{Account, Entropy, Network};
+use crate::data::{Account, Entropy};
 use crate::utils::{generate_entropy, mnemonic};
+
+use bitcoin::util::bip32::ExtendedPrivKey;
+use bitcoin::Network;
 
 fn button<'a, Message>(state: &'a mut button::State, label: &str) -> Button<'a, Message> {
     Button::new(
@@ -53,6 +56,7 @@ enum Step {
         name: String,
         how_many: Entropy,
         words: Vec<String>,
+        xprv: ExtendedPrivKey,
     },
     //CreateAccount {
     //name: String,
@@ -62,9 +66,11 @@ enum Step {
     //},
 }
 
-fn generate_words(entropy: Entropy) -> Vec<String> {
+fn generate(entropy: Entropy, network: Network) -> (Vec<String>, ExtendedPrivKey) {
     let data = generate_entropy(entropy);
-    mnemonic(&data).expect("couldn't create mnemonic")
+    let words = mnemonic(&data).expect("couldn't create mnemonic");
+    let xprv = ExtendedPrivKey::new_master(network, &data).unwrap();
+    (words, xprv)
 }
 
 impl<'a> Page {
@@ -87,11 +93,13 @@ impl<'a> Page {
                 Step::Name { network, name, .. } => self.step = Step::HowManyWords { network, name, how_many: None },
                 Step::HowManyWords { network, name, how_many } => {
                     if let Some(how_many) = how_many {
+                        let (words, xprv) = generate(how_many, network);
                         self.step = Step::DisplayWords {
                             network,
                             name,
                             how_many,
-                            words: generate_words(how_many),
+                            words,
+                            xprv,
                         }
                     }
                 }
@@ -117,12 +125,7 @@ impl<'a> Page {
                         input_state: text_input::State::new(),
                     }
                 }
-                Step::DisplayWords {
-                    network,
-                    name,
-                    how_many,
-                    ..
-                } => {
+                Step::DisplayWords { network, name, .. } => {
                     self.step = Step::HowManyWords {
                         network,
                         name,
@@ -202,7 +205,7 @@ impl<'a> Page {
                 input_state, name, ..
             } => Self::name(input_state, name),
             Step::HowManyWords { how_many, .. } => Self::how_many_words(*how_many),
-            Step::DisplayWords { name, words, .. } => Self::display_words(words.clone(), name),
+            Step::DisplayWords { words, .. } => Self::display_words(words.clone()),
         };
 
         // TODO: put the controls outside the scrollable
@@ -216,16 +219,21 @@ impl<'a> Page {
             .into()
     }
     fn network(selection: Option<Network>) -> Element<'a, Message> {
+        let networks = [
+            (Network::Regtest, "Regtest"),
+            (Network::Testnet, "Testnet"),
+            (Network::Bitcoin, "Mainnet"),
+        ];
         let question = Column::new()
             .padding(20)
             .spacing(10)
             .push(Text::new("Iced is written in...").size(24))
-            .push(Network::all().iter().cloned().fold(
+            .push(networks.iter().cloned().fold(
                 Column::new().padding(10).spacing(20),
-                |choices, network| {
+                |choices, (network, string)| {
                     choices.push(Radio::new(
                         network,
-                        network,
+                        string,
                         selection,
                         Message::NetworkSelected,
                     ))
@@ -274,7 +282,7 @@ impl<'a> Page {
             .push(radio)
             .into()
     }
-    fn display_words(words: Vec<String>, name: &str) -> Element<'a, Message> {
+    fn display_words(words: Vec<String>) -> Element<'a, Message> {
         let word_list = Column::new().padding(20).spacing(10).push(
             words
                 .iter()

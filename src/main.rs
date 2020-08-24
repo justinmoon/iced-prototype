@@ -13,7 +13,6 @@ mod tasks;
 mod utils;
 
 use data::Account;
-use error::Error;
 
 //
 // Accounts
@@ -145,7 +144,6 @@ impl<'a> AccountPage {
             AccountView::Receive => Text::new("Receive").into(),
             AccountView::Settings => Text::new("Settings").into(),
         };
-        let account_name = Text::new(format!("Account: {}", self.account.name)).size(50);
 
         let content: Element<_> = Column::new()
             .padding(20)

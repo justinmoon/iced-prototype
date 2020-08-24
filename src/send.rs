@@ -1,9 +1,9 @@
 use iced::{
-    button, scrollable, text_input, Align, Button, Column, Command, Container, Element,
-    HorizontalAlignment, Length, Radio, Row, Sandbox, Scrollable, Settings, Text, TextInput,
+    button, scrollable, text_input, Align, Button, Column, Command, Element, HorizontalAlignment,
+    Text, TextInput,
 };
 
-use crate::data::{Account, Entropy, Network};
+use crate::data::Account;
 use crate::error::Error;
 use crate::tasks;
 
