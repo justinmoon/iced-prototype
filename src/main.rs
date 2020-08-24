@@ -10,6 +10,7 @@ mod mocks;
 mod send;
 mod setup;
 mod tasks;
+mod utils;
 
 use data::Account;
 use error::Error;

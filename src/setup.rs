@@ -4,6 +4,7 @@ use iced::{
 };
 
 use crate::data::{Account, Entropy, Network};
+use crate::utils::{generate_entropy, mnemonic};
 
 fn button<'a, Message>(state: &'a mut button::State, label: &str) -> Button<'a, Message> {
     Button::new(
@@ -61,12 +62,9 @@ enum Step {
     //},
 }
 
-fn generate_words(entroy: Entropy) -> Vec<String> {
-    let mut words: Vec<String> = vec![];
-    for _ in 0..entroy.words() {
-        words.push(String::from("potato"));
-    }
-    words
+fn generate_words(entropy: Entropy) -> Vec<String> {
+    let data = generate_entropy(entropy);
+    mnemonic(&data).expect("couldn't create mnemonic")
 }
 
 impl<'a> Page {
