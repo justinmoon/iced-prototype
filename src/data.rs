@@ -3,13 +3,15 @@ use iced::button;
 #[derive(Debug, Clone)]
 pub struct Account {
     pub name: String,
+    pub descriptor: String,
     pub tab_button: button::State,
 }
 
 impl Account {
-    pub fn new(name: String) -> Self {
+    pub fn new(name: String, descriptor: String) -> Self {
         Self {
             name,
+            descriptor,
             tab_button: button::State::new(),
         }
     }

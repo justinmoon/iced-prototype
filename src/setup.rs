@@ -56,7 +56,7 @@ enum Step {
         name: String,
         how_many: Entropy,
         words: Vec<String>,
-        xprv: ExtendedPrivKey,
+        descriptor: String,
     },
     //CreateAccount {
     //name: String,
@@ -66,11 +66,12 @@ enum Step {
     //},
 }
 
-fn generate(entropy: Entropy, network: Network) -> (Vec<String>, ExtendedPrivKey) {
+fn generate(entropy: Entropy, network: Network) -> (Vec<String>, String) {
     let data = generate_entropy(entropy);
     let words = mnemonic(&data).expect("couldn't create mnemonic");
     let xprv = ExtendedPrivKey::new_master(network, &data).unwrap();
-    (words, xprv)
+    let descriptor = format!("wpkh({})", xprv);
+    (words, descriptor)
 }
 
 impl<'a> Page {
@@ -93,13 +94,13 @@ impl<'a> Page {
                 Step::Name { network, name, .. } => self.step = Step::HowManyWords { network, name, how_many: None },
                 Step::HowManyWords { network, name, how_many } => {
                     if let Some(how_many) = how_many {
-                        let (words, xprv) = generate(how_many, network);
+                        let (words, descriptor) = generate(how_many, network);
                         self.step = Step::DisplayWords {
                             network,
                             name,
                             how_many,
                             words,
-                            xprv,
+                            descriptor,
                         }
                     }
                 }
@@ -184,8 +185,10 @@ impl<'a> Page {
 
         // Next button
         match self.step.clone() {
-            Step::DisplayWords { name, .. } => {
-                let account = Account::new(name);
+            Step::DisplayWords {
+                name, descriptor, ..
+            } => {
+                let account = Account::new(name, descriptor);
                 controls = controls.push(
                     //Button::new(self.next_button, Text::new("Finish"))
                     //.on_press(Message::SetupComplete(account)),
