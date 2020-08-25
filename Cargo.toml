@@ -13,6 +13,8 @@ log = "0.4.11"
 rand = "0.7.3"
 tokio = { version = "0.2", features = ["full"] }
 bitcoin="0.21"
+magical-bitcoin-wallet = {git = "https://github.com/MagicalBitcoin/magical-bitcoin-wallet", branch = "master", features = ["key-value-db"] }
+
 
 # Only used for mnemonic operations ...
 rust-crypto = "0.2"
