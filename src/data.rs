@@ -17,6 +17,12 @@ impl Account {
     }
 }
 
+impl Account {
+    pub fn address(&self) -> String {
+        "bcrt1qfc9gsnf5jhwkq2eptzzjwg5prjt794xd9638jt".to_string()
+    }
+}
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Entropy {
     Low,

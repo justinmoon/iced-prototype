@@ -7,6 +7,7 @@ use log::error;
 mod data;
 mod error;
 mod mocks;
+mod receive;
 mod send;
 mod setup;
 mod tasks;
@@ -25,12 +26,13 @@ pub enum AccountMessage {
     TransactionsView,
     SettingsView,
     Send(send::Message),
+    Receive(receive::Message),
 }
 
 #[derive(Debug, Clone)]
 pub enum AccountView {
     Send(send::Page),
-    Receive,
+    Receive(receive::Page),
     Transactions,
     Settings,
 }
@@ -115,7 +117,7 @@ impl<'a> AccountPage {
                 Command::none()
             }
             AccountMessage::ReceiveView => {
-                self.view = AccountView::Receive;
+                self.view = AccountView::Receive(receive::Page::new(self.account.clone()));
                 Command::none()
             }
             AccountMessage::TransactionsView => {
@@ -135,13 +137,22 @@ impl<'a> AccountPage {
                     Command::none()
                 }
             }
+            AccountMessage::Receive(msg) => {
+                // FIXME: this is verbose ... maybe have self.view should just map .update to all
+                // active child like I did for the Node enum in druid ... ???
+                if let AccountView::Receive(ref mut view) = &mut self.view {
+                    view.update(msg).map(AccountMessage::Receive)
+                } else {
+                    Command::none()
+                }
+            }
         }
     }
     pub fn view(&mut self) -> Element<AccountMessage> {
         let content: Element<_> = match self.view {
             AccountView::Transactions => Text::new("Transactions").into(),
             AccountView::Send(ref mut send) => send.view().map(AccountMessage::Send),
-            AccountView::Receive => Text::new("Receive").into(),
+            AccountView::Receive(ref mut receive) => receive.view().map(AccountMessage::Receive),
             AccountView::Settings => Text::new("Settings").into(),
         };
 
