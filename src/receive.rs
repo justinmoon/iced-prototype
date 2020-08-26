@@ -1,6 +1,6 @@
 use iced::{
     button, scrollable, text_input, Align, Button, Column, Command, Element, HorizontalAlignment,
-    Text, TextInput,
+    Row, Text, TextInput,
 };
 
 use crate::data::Account;
@@ -8,26 +8,45 @@ use crate::error::Error;
 use crate::tasks;
 use bitcoin::util::address::Address as BitcoinAddress;
 
+use clipboard::{ClipboardContext, ClipboardProvider};
+
 #[derive(Debug, Clone)]
-pub enum Message {}
+pub enum Message {
+    Copy,
+}
 
 #[derive(Debug, Clone)]
 pub struct Address {
     account: Account,
     address: BitcoinAddress,
+    copy_button: button::State,
 }
 
 impl Address {
     // mut?
     pub fn new(mut account: Account) -> Self {
         let address = account.address().expect("Couldn't derive address"); // FIXME
-        Self { account, address }
+        Self {
+            account,
+            address,
+            copy_button: button::State::new(),
+        }
     }
     pub fn update(&mut self, message: Message) -> Command<Message> {
-        match message {}
+        match message {
+            Message::Copy => {
+                // TODO: emit event updating UI depending on whether or not this worked ...
+                let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
+                ctx.set_contents(self.address.to_string()).unwrap();
+            }
+        };
+        Command::none()
     }
     pub fn view(&mut self) -> Element<Message> {
-        Text::new(self.address.to_string()).into()
+        Row::new()
+            .push(Text::new(self.address.to_string()))
+            .push(Button::new(&mut self.copy_button, Text::new("Copy")).on_press(Message::Copy))
+            .into()
     }
 }
 
