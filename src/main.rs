@@ -12,6 +12,7 @@ mod receive;
 mod send;
 mod setup;
 mod tasks;
+mod transactions;
 mod utils;
 
 use data::Account;
@@ -76,14 +77,20 @@ impl Application for Junction {
 
     fn new(_flags: ()) -> (Self, Command<Message>) {
         let accounts = mocks::make_accounts(3);
+        let account = accounts[0].clone();
         (
             Self {
                 //page: Page::Setup(setup::Page::new()),
-                page: Page::Account(account::Page::new(accounts[0].clone())),
+                page: Page::Account(account::Page::new(account.clone())),
                 accounts,
                 new_account_button: button::State::new(),
             },
-            Command::none(),
+            // Fetch balances / transactions
+            Command::perform(
+                tasks::update_account(account),
+                account::Message::AccountUpdated,
+            )
+            .map(Message::AccountMessage),
         )
     }
 
@@ -101,8 +108,12 @@ impl Application for Junction {
                 }
             }
             Message::ChangeAccount(account) => {
-                self.page = Page::Account(account::Page::new(account));
-                Command::none()
+                self.page = Page::Account(account::Page::new(account.clone()));
+                Command::perform(
+                    tasks::update_account(account),
+                    account::Message::AccountUpdated,
+                )
+                .map(Message::AccountMessage)
             }
             Message::CreateAccount => {
                 self.page = Page::Setup(setup::Page::new());

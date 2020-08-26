@@ -1,5 +1,3 @@
-use std::sync::Arc;
-
 use iced::{
     button, scrollable, text_input, Align, Button, Column, Command, Element, HorizontalAlignment,
     Text, TextInput,
@@ -14,7 +12,8 @@ pub enum Message {
     Address(String),
     Amount(String),
     Broadcast,
-    BroadcastResult(Result<String, Arc<Error>>), // FIXME: Arc
+    BroadcastResult(Result<String, Error>),
+    AccountUpdated(Account),
 }
 
 #[derive(Debug, Clone)]
@@ -27,10 +26,11 @@ pub struct AddressAndAmount {
     txid: Option<String>,
     error: Option<String>,
     broadcasting: bool,
+    account: Account,
 }
 
 impl AddressAndAmount {
-    pub fn new() -> Self {
+    pub fn new(account: Account) -> Self {
         Self {
             broadcast_button: button::State::new(),
             address: "".to_string(),
@@ -40,6 +40,7 @@ impl AddressAndAmount {
             txid: None,
             error: None,
             broadcasting: false,
+            account,
         }
     }
     pub fn update(&mut self, message: Message) -> Command<Message> {
@@ -64,6 +65,10 @@ impl AddressAndAmount {
                     Ok(txid) => self.txid = Some(txid),
                     Err(_) => self.error = Some("Couldn't broadcast".to_string()),
                 };
+                Command::none()
+            }
+            Message::AccountUpdated(account) => {
+                self.account = account;
                 Command::none()
             }
         }
@@ -135,7 +140,7 @@ impl<'a> Page {
             next_button: button::State::new(),
             back_button: button::State::new(),
             scroll: scrollable::State::new(),
-            step: Step::AddressAndAmount(AddressAndAmount::new()),
+            step: Step::AddressAndAmount(AddressAndAmount::new(account.clone())),
             account,
         }
     }

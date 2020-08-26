@@ -70,7 +70,7 @@ fn generate(entropy: Entropy, network: Network) -> (Vec<String>, String) {
     let data = generate_entropy(entropy);
     let words = mnemonic(&data).expect("couldn't create mnemonic");
     let xprv = ExtendedPrivKey::new_master(network, &data).unwrap();
-    let descriptor = format!("wpkh({})", xprv);
+    let descriptor = format!("wpkh({}/0/*)", xprv);
     // TODO: don't return a "descriptor, instead return a vec of "signers". In multisig we can
     // combine these signers into descriptor pair once we have enough. Signers are like an
     // intermediate state in the setup wizard, and help to identify keys / devices shared between

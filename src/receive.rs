@@ -13,6 +13,7 @@ use clipboard::{ClipboardContext, ClipboardProvider};
 #[derive(Debug, Clone)]
 pub enum Message {
     Copy,
+    AccountUpdated(Account),
 }
 
 #[derive(Debug, Clone)]
@@ -39,6 +40,7 @@ impl Address {
                 let mut ctx: ClipboardContext = ClipboardProvider::new().unwrap();
                 ctx.set_contents(self.address.to_string()).unwrap();
             }
+            Message::AccountUpdated(account) => self.account = account,
         };
         Command::none()
     }
