@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use iced::{
     button, scrollable, text_input, Align, Button, Column, Command, Element, HorizontalAlignment,
     Text, TextInput,
@@ -12,7 +14,7 @@ pub enum Message {
     Address(String),
     Amount(String),
     Broadcast,
-    BroadcastResult(Result<String, Error>),
+    BroadcastResult(Result<String, Arc<Error>>), // FIXME: Arc
 }
 
 #[derive(Debug, Clone)]

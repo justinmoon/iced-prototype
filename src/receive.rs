@@ -6,6 +6,7 @@ use iced::{
 use crate::data::Account;
 use crate::error::Error;
 use crate::tasks;
+use bitcoin::util::address::Address as BitcoinAddress;
 
 #[derive(Debug, Clone)]
 pub enum Message {}
@@ -13,20 +14,20 @@ pub enum Message {}
 #[derive(Debug, Clone)]
 pub struct Address {
     account: Account,
-    address: String,
+    address: BitcoinAddress,
 }
 
 impl Address {
     // mut?
     pub fn new(mut account: Account) -> Self {
-        let address = account.address();
+        let address = account.address().expect("Couldn't derive address"); // FIXME
         Self { account, address }
     }
     pub fn update(&mut self, message: Message) -> Command<Message> {
         match message {}
     }
     pub fn view(&mut self) -> Element<Message> {
-        Text::new(self.address.clone()).into()
+        Text::new(self.address.to_string()).into()
     }
 }
 
