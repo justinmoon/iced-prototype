@@ -1,3 +1,5 @@
+use std::str::FromStr;
+
 use iced::{
     button, scrollable, text_input, Align, Button, Column, Command, Element, HorizontalAlignment,
     Text, TextInput,
@@ -6,14 +8,18 @@ use iced::{
 use crate::data::Account;
 use crate::error::Error;
 use crate::tasks;
+use bitcoin::util::amount::Denomination;
+use bitcoin::{Address, Amount, Txid};
 
 #[derive(Debug, Clone)]
 pub enum Message {
     Address(String),
     Amount(String),
-    Broadcast,
-    BroadcastResult(Result<String, Error>),
+    //Broadcast,
+    //BroadcastResult(Result<Txid, Error>),
     AccountUpdated(Account),
+    Send,
+    SendResult(Result<Txid, Error>),
 }
 
 #[derive(Debug, Clone)]
@@ -23,9 +29,9 @@ pub struct AddressAndAmount {
     address: String,
     amount_input: text_input::State,
     amount: String,
-    txid: Option<String>,
+    txid: Option<Txid>,
     error: Option<String>,
-    broadcasting: bool,
+    sending: bool,
     account: Account,
 }
 
@@ -39,7 +45,7 @@ impl AddressAndAmount {
             amount_input: text_input::State::new(),
             txid: None,
             error: None,
-            broadcasting: false,
+            sending: false,
             account,
         }
     }
@@ -51,31 +57,43 @@ impl AddressAndAmount {
             }
             Message::Amount(amount) => {
                 self.amount = amount;
-                Command::none()
-            }
-            Message::Broadcast => {
-                self.broadcasting = true;
                 self.error = None;
-                Command::perform(tasks::dummy_broadcast(), Message::BroadcastResult)
-            }
-
-            Message::BroadcastResult(result) => {
-                self.broadcasting = false;
-                match result {
-                    Ok(txid) => self.txid = Some(txid),
-                    Err(_) => self.error = Some("Couldn't broadcast".to_string()),
-                };
                 Command::none()
             }
             Message::AccountUpdated(account) => {
                 self.account = account;
+                self.error = None;
+                Command::none()
+            }
+            Message::Send => {
+                self.sending = true;
+                if let Ok(address) = Address::from_str(&self.address) {
+                    if let Ok(amount) = Amount::from_str_in(&self.amount, Denomination::Satoshi) {
+                        return Command::perform(
+                            tasks::send_money(self.account.clone(), address, amount),
+                            Message::SendResult,
+                        );
+                    } else {
+                        self.error = Some("Bad amount".to_string());
+                    }
+                } else {
+                    self.error = Some("Bad address".to_string())
+                }
+                Command::none()
+            }
+            Message::SendResult(result) => {
+                self.sending = false;
+                match result {
+                    Ok(txid) => self.txid = Some(txid),
+                    Err(_) => self.error = Some("Could not sign".to_string()),
+                }
                 Command::none()
             }
         }
     }
     pub fn view(&mut self) -> Element<Message> {
         if let Some(txid) = self.txid.clone() {
-            Text::new(txid).into()
+            Text::new(txid.to_string()).into()
         } else {
             let address_input = TextInput::new(
                 &mut self.address_input,
@@ -93,14 +111,15 @@ impl AddressAndAmount {
             )
             .padding(15);
 
-            let button: Element<_> = if self.broadcasting {
-                Text::new("Broadcasting").into()
+            let button: Element<_> = if self.sending {
+                Text::new("Sending").into()
             } else {
+                // TODO: maybe validate address / amount here?
                 Button::new(
                     &mut self.broadcast_button,
                     Text::new("Send").horizontal_alignment(HorizontalAlignment::Center),
                 )
-                .on_press(Message::Broadcast)
+                .on_press(Message::Send)
                 .into()
             };
 

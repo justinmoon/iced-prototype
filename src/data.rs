@@ -1,12 +1,6 @@
-use std::str::FromStr;
-
 use bitcoin::{util::address::Address, Network};
 use iced::button;
-use magical_bitcoin_wallet::blockchain::{
-    Blockchain, Capability, ElectrumBlockchain, OnlineBlockchain, Progress,
-};
-use magical_bitcoin_wallet::database::BatchDatabase;
-use magical_bitcoin_wallet::descriptor::ExtendedDescriptor;
+use magical_bitcoin_wallet::blockchain::ElectrumBlockchain;
 use magical_bitcoin_wallet::sled;
 use magical_bitcoin_wallet::types::TransactionDetails;
 use magical_bitcoin_wallet::Client as ElectrumClient;
@@ -40,7 +34,7 @@ impl Account {
 }
 
 impl Account {
-    fn get_wallet(&self) -> Result<Wallet<ElectrumBlockchain, sled::Tree>, Error> {
+    pub fn get_wallet(&self) -> Result<Wallet<ElectrumBlockchain, sled::Tree>, Error> {
         let host = "tcp://localhost:51401";
         let proxy = None;
 

@@ -1,10 +1,13 @@
 use std::fmt::Debug;
 
+extern crate bitcoin;
+
 #[derive(Debug, Clone)]
 pub enum Error {
     BroadcastError,
     Mnemonic(String),
     AddressDerivationError,
+    CouldNotFinalize,
 
     // Hack b/c Iced needs cloneable Error, so we can't wrap non-cloneable library errors
     Library(String),
@@ -28,3 +31,4 @@ macro_rules! impl_error {
 impl_error!(magical_bitcoin_wallet::error::Error, Magical);
 impl_error!(magical_bitcoin_wallet::electrum_client::Error, Electrum);
 impl_error!(magical_bitcoin_wallet::sled::Error, Sled);
+impl_error!(bitcoin::Error, Bitcoin);
